@@ -1,0 +1,10 @@
+{
+  "hosts": [
+    {
+      "name": "some_client",
+      "username": "db_username",
+      "password": "db_password",
+      "host": "some-db-host"
+    }
+  ]
+}
