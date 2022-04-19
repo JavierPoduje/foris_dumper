@@ -1,10 +1,11 @@
 {
-  "hosts": [
-    {
-      "name": "some_client",
-      "username": "db_username",
-      "password": "db_password",
-      "host": "some-db-host"
+  "target_folder": "path/to/folder",
+  "hosts": {
+    "some-client": {
+      "username": "some-username",
+      "password": "some-password",
+      "host": "some-host",
+      "scenarios_db": "some-db"
     }
-  ]
+  }
 }
