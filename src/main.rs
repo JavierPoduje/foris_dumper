@@ -15,10 +15,27 @@ fn hosts_file() -> JsonValue {
 
 fn dump(client_info: &JsonValue) -> Output {
     let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
-    let host = client_info.get("host").unwrap();
-    let username = client_info.get("username").unwrap();
-    let password = client_info.get("password").unwrap();
-    let scenarios_db = client_info.get("scenarios_db").unwrap();
+
+    let host = if let Some(host) = client_info.get("host") {
+        host
+    } else {
+        panic!("Host is not defined for client");
+    };
+    let username = if let Some(username) = client_info.get("username") {
+        username
+    } else {
+        panic!("Username is not defined for client");
+    };
+    let password = if let Some(password) = client_info.get("password") {
+        password
+    } else {
+        panic!("Password is not defined for client");
+    };
+    let scenarios_db = if let Some(scenarios_db) = client_info.get("scenarios_db") {
+        scenarios_db
+    } else {
+        panic!("Scenarios_db is not defined for client");
+    };
 
     PCommand::new("ssh")
         .args([
