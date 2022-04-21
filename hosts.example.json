@@ -1,10 +1,8 @@
 {
-  "hosts": {
-    "client_name": {
-      "username": "some_username",
-      "password": "some_password",
-      "host": "some_host",
-      "scenarios_db": "some_db"
-    }
+  "client_name": {
+    "username": "some_username",
+    "password": "some_password",
+    "host": "some_host",
+    "scenarios_db": "some_db"
   }
 }

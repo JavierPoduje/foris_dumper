@@ -1,4 +1,5 @@
 use clap::{Arg, Command};
+use dotenv;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
 use std::io::Write;
@@ -6,7 +7,7 @@ use std::path::PathBuf;
 use std::process::{Command as PCommand, Output};
 use std::str;
 
-use dotenv;
+mod client;
 
 const FILE_NAME: &str = "hosts.json";
 
@@ -16,60 +17,24 @@ fn hosts_file() -> JsonValue {
     json
 }
 
-fn dump(client_info: &JsonValue) -> Output {
+fn dump(client: &client::Client) -> Output {
+    println!("[INFO]: dumping db...");
+
     let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
-
-    let host = if let Some(host) = client_info.get("host") {
-        host
-    } else {
-        panic!("Host is not defined for client");
-    };
-    let username = if let Some(username) = client_info.get("username") {
-        username
-    } else {
-        panic!("Username is not defined for client");
-    };
-    let password = if let Some(password) = client_info.get("password") {
-        password
-    } else {
-        panic!("Password is not defined for client");
-    };
-    let scenarios_db = if let Some(scenarios_db) = client_info.get("scenarios_db") {
-        scenarios_db
-    } else {
-        panic!("Scenarios_db is not defined for client");
-    };
-
     PCommand::new("ssh")
         .args([
             &ssh_alias,
-            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", host, username, password, scenarios_db),
+            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", client.host, client.username, client.password, client.scenarios_db),
         ])
         .output()
-        .expect("Couldn't get the dump, dude...")
+        .expect("Couldn't get the dump...")
 }
 
-fn write(dump_lines: std::str::Lines, client_info: &JsonValue) {
+fn write(raw_output: Vec<u8>, client: &client::Client) -> Result<usize, std::io::Error> {
+    println!("[INFO]: writing dump file...");
     let target_folder = dotenv::var("TARGET_FOLDER").unwrap();
-    let scenarios_db = if let Some(scenarios_db) = client_info.get("scenarios_db") {
-        scenarios_db.as_str()
-    } else {
-        panic!("Scenarios_db is not defined for client");
-    };
-
-    if let Some(scenarios_db) = scenarios_db {
-        let path = PathBuf::from(target_folder.as_str()).join(&format!("{}.sql", scenarios_db));
-        println!("{:?}", path);
-        match File::create(path) {
-            Ok(mut file) => {
-                for line in dump_lines {
-                    file.write(line.as_bytes());
-                    file.write_all(b"\n");
-                }
-            }
-            Err(e) => println!("{}", e),
-        }
-    }
+    let path = PathBuf::from(target_folder.as_str()).join(&format!("{}.sql", client.scenarios_db));
+    File::create(path)?.write(&raw_output)
 }
 
 fn main() -> Result<(), ()> {
@@ -79,26 +44,27 @@ fn main() -> Result<(), ()> {
         .arg(
             Arg::new("client")
                 .long("client")
-                .help("name of the client (example: 'ueuropea-qa')")
+                .help("name of the client (example: 'hyades')")
                 .takes_value(true)
                 .required(true),
         )
         .get_matches();
 
-    let client = args.value_of("client").unwrap();
     let file = hosts_file();
 
-    let hosts = file.get("hosts").unwrap();
-    let client_info = hosts.get(client).unwrap();
+    assert!(
+        file.get(args.value_of("client").unwrap()).is_some(),
+        "Client not found in hosts.json file"
+    );
 
-    let output = dump(client_info);
+    let client = client::Client::new(file.get(args.value_of("client").unwrap()).unwrap());
 
-    let dump_lines = match str::from_utf8(&output.stdout) {
-        Ok(output) => output.lines(),
-        Err(_) => panic!("todo..."), // TODO: handle this case correctly
-    };
-
-    write(dump_lines, client_info);
+    let output = dump(&client);
+    if let Ok(_) = write(output.stdout, &client) {
+        println!("[INFO]: File successfully created");
+    } else {
+        println!("[ERROR]: Couldn't create file");
+    }
 
     Ok(())
 }
