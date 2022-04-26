@@ -54,7 +54,7 @@ fn main() -> Result<(), ()> {
 
     assert!(
         file.get(args.value_of("client").unwrap()).is_some(),
-        "Client not found in hosts.json file"
+        "Client not found in the hosts.json file"
     );
 
     let client = client::Client::new(file.get(args.value_of("client").unwrap()).unwrap());
