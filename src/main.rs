@@ -1,4 +1,4 @@
-use clap::{Arg, Command};
+use clap::{Arg, Command, ArgMatches};
 use dotenv;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
@@ -37,10 +37,36 @@ fn write(raw_output: Vec<u8>, client: &client::Client) -> Result<usize, std::io:
     File::create(path)?.write(&raw_output)
 }
 
+fn perform_dump_tags(client_definition: &JsonValue) {
+    let client = client::Client::new(client_definition);
+    let output = dump(&client);
+    if let Ok(_) = write(output.stdout, &client) {
+        println!("[INFO]: File successfully created");
+    } else {
+        println!("[ERROR]: Couldn't create file");
+    }
+}
+
+fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) {
+    todo!();
+}
+
+fn perform(client_definition: &JsonValue, args: ArgMatches) {
+    match args.value_of("action") {
+        Some(value) if value == "dump-tags" => {
+            perform_dump_tags(client_definition)
+        }
+        Some(value) if value == "dump-scenario" => {
+            perform_dump_scenario(client_definition, args)
+        }
+        _ => unreachable!()
+    }
+}
+
 fn main() -> Result<(), ()> {
     let args = Command::new("Tags Handler")
         .version("0.1")
-        .about("Bring tags from Foris clients")
+        .about("Manage remote and local Darwin's DBs.")
         .arg(
             Arg::new("client")
                 .long("client")
@@ -48,23 +74,45 @@ fn main() -> Result<(), ()> {
                 .takes_value(true)
                 .required(true),
         )
+        .arg(
+            Arg::new("action")
+                .long("action")
+                .takes_value(true)
+                .help(
+                    "Action to perform. Options: \
+                    * dump-tags
+                    * dump-scenario
+                ",
+                )
+                .possible_values(&["dump-tags", "dump-scenario"])
+                .required(true),
+        )
+        .arg(
+            Arg::new("scenario")
+                .long("scenario")
+                .help("Name of scenario to dump. Only used for action `dump-scenario`.")
+                .takes_value(true),
+        )
         .get_matches();
+
+    // Assert commands integrity
+    if args.value_of("action").unwrap() == "dump-scenario" {
+        assert!(
+            args.value_of("scenario").is_some(),
+            "The `scenario` is necessary to perform the `dump-scenario` action"
+        );
+    };
 
     let file = hosts_file();
 
-    assert!(
-        file.get(args.value_of("client").unwrap()).is_some(),
-        "Client not found in the hosts.json file"
-    );
-
-    let client = client::Client::new(file.get(args.value_of("client").unwrap()).unwrap());
-
-    let output = dump(&client);
-    if let Ok(_) = write(output.stdout, &client) {
-        println!("[INFO]: File successfully created");
-    } else {
-        println!("[ERROR]: Couldn't create file");
+    match file.get(args.value_of("client").unwrap()) {
+        Some(client_definition) => {
+            perform(client_definition, args);
+            Ok(())
+        }
+        None => {
+            println!("[ERROR]: Client not found in the hosts.json file...");
+            Err(())
+        }
     }
-
-    Ok(())
 }
