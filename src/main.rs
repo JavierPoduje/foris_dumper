@@ -2,9 +2,8 @@ use clap::{Arg, ArgMatches, Command};
 use dotenv;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
-use std::io::Write;
+use std::io::{ Write, Error };
 use std::path::PathBuf;
-use std::process::{Command as PCommand, Output};
 use std::str;
 
 mod client;
@@ -18,72 +17,46 @@ fn hosts_file() -> JsonValue {
     json
 }
 
-fn dump(client: &Client) -> Output {
-    println!("[INFO]: dumping db...");
-
-    let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
-    PCommand::new("ssh")
-        .args([
-            &ssh_alias,
-            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", client.host, client.username, client.password, client.scenarios_db),
-        ])
-        .output()
-        .expect("Couldn't get the dump...")
-}
-
-fn write(raw_output: Vec<u8>, filename: &str) -> Result<usize, std::io::Error> {
+fn write(raw_output: Vec<u8>, filename: &str) -> Result<usize, Error> {
     println!("[INFO]: writing dump file...");
     let target_folder = dotenv::var("TARGET_FOLDER").unwrap();
     let path = PathBuf::from(target_folder.as_str()).join(&format!("{}.sql", filename));
     File::create(path)?.write(&raw_output)
 }
 
-fn perform_dump_tags(client_definition: &JsonValue) {
+fn perform_dump_tags(client_definition: &JsonValue) -> Result<usize, Error> {
+    println!("[INFO]: dumping tags...");
     let client = Client::new(client_definition);
-    let output = dump(&client);
-    if let Ok(_) = write(output.stdout, &client.scenarios_db) {
-        println!("[INFO]: File successfully created");
-    } else {
-        println!("[ERROR]: Couldn't create file");
-    }
+    let output = client.dump_tags(dotenv::var("SSH_ALIAS").unwrap());
+    write(output.stdout, &client.scenarios_db)
 }
 
-fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) {
+fn perform_dump_scenario(
+    client_definition: &JsonValue,
+    args: ArgMatches,
+) -> Result<usize, std::io::Error> {
+    println!("[INFO]: dumping scenario...");
+
     let dump_scenario = args.value_of("scenario").unwrap();
     let client = Client::new(client_definition);
-    let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
-
-    println!("[INFO]: dumping db...");
-
-    let output = PCommand::new("ssh")
-        .args([
-            &ssh_alias,
-            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {}", client.host, client.username, client.password, dump_scenario),
-        ])
-        .output()
-        .expect("Couldn't get the dump...");
-
-    if let Ok(_) = write(output.stdout, dump_scenario) {
-        println!("[INFO]: File successfully created");
-    } else {
-        println!("[ERROR]: Couldn't create file");
-    }
+    let output = client.dump_scenario(dotenv::var("SSH_ALIAS").unwrap(), dump_scenario);
+    write(output.stdout, dump_scenario)
 }
 
 fn perform(client_definition: &JsonValue, args: ArgMatches) {
-    match args.value_of("action") {
-        Some(value) if value == "dump-tags" => {
-            perform_dump_tags(client_definition);
-        }
-        Some(value) if value == "dump-scenario" => {
-            perform_dump_scenario(client_definition, args);
-        }
+    let response = match args.value_of("action") {
+        Some(value) if value == "dump-tags" => perform_dump_tags(client_definition),
+        Some(value) if value == "dump-scenario" => perform_dump_scenario(client_definition, args),
         _ => unreachable!(),
+    };
+    match response {
+        Ok(_) => println!("[INFO]: File successfully created"),
+        _ => println!("[ERROR]: Couldn't create file"),
     }
 }
 
 fn main() -> Result<(), ()> {
-    let args = Command::new("Tags Handler")
+    let args = Command::new("Foris Dumps Handler")
         .version("0.1")
         .about("Manage remote and local Darwin's DBs.")
         .arg(
@@ -99,8 +72,8 @@ fn main() -> Result<(), ()> {
                 .takes_value(true)
                 .help(
                     "Action to perform. Options: \
-                    * dump-tags
-                    * dump-scenario
+                        * dump-tags
+                        * dump-scenario
                 ",
                 )
                 .possible_values(&["dump-tags", "dump-scenario"])
@@ -122,9 +95,8 @@ fn main() -> Result<(), ()> {
         );
     };
 
-    let file = hosts_file();
-
-    match file.get(args.value_of("client").unwrap()) {
+    // Execute
+    match hosts_file().get(args.value_of("client").unwrap()) {
         Some(client_definition) => {
             perform(client_definition, args);
             Ok(())

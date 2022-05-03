@@ -1,4 +1,5 @@
 use serde_json::Value as JsonValue;
+use std::process::{Command, Output};
 
 #[derive(Debug)]
 pub struct Client {
@@ -32,7 +33,27 @@ impl Client {
         }
     }
 
-    pub fn value_from_key(client: &JsonValue, raw_key: &str) -> String {
+    pub fn dump_tags(&self, ssh_alias: String) -> Output {
+        Command::new("ssh")
+        .args([
+            &ssh_alias,
+            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", self.host, self.username, self.password, self.scenarios_db),
+        ])
+        .output()
+        .expect("Couldn't get the dump...")
+    }
+
+    pub fn dump_scenario(&self, ssh_alias: String, dump_scenario: &str) -> Output {
+        Command::new("ssh")
+        .args([
+            &ssh_alias,
+            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {}", self.host, self.username, self.password, dump_scenario),
+        ])
+        .output()
+        .expect("Couldn't get the dump...")
+    }
+
+    fn value_from_key(client: &JsonValue, raw_key: &str) -> String {
         client.get(raw_key).unwrap().as_str().unwrap().to_string()
     }
 }
