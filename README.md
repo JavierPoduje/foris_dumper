@@ -34,7 +34,5 @@ cargo run -- --client hyades
 
 ## Todo
 
-1. dump scenario.
-2. import scenario to local.
-3. import scenario to remote.
+1. import scenario to remote.
 2. export scenarios from local to remote.
