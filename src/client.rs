@@ -1,5 +1,5 @@
 use serde_json::Value as JsonValue;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 #[derive(Debug)]
 pub struct Client {
@@ -33,11 +33,61 @@ impl Client {
         }
     }
 
+    pub fn dump_to_db(&self, dump_scenario: &str) -> Output {
+        let target_folder = dotenv::var("TARGET_FOLDER").unwrap();
+
+        // 1. delete db on localhost
+        println!("[INFO]: deleting scenario...");
+        Command::new("mysql")
+            .args([
+                format!("--host={}", self.host),
+                format!("--user={}", self.username),
+                format!("--password={}", self.password),
+                format!("--port={}", "4006"),
+                format!("-e DROP DATABASE IF EXISTS {}", dump_scenario),
+            ])
+            .output()
+            .expect("Couldn't drop db");
+
+        // 2. create db
+        println!("[INFO]: creating scenario...");
+        Command::new("mysql")
+            .args([
+                format!("--host={}", self.host),
+                format!("--user={}", self.username),
+                format!("--password={}", self.password),
+                format!("--port={}", "4006"),
+                format!("-e CREATE DATABASE {}", dump_scenario),
+            ])
+            .output()
+            .expect("Couldn't drop db");
+
+        // 3. import db
+        println!("[INFO]: importing scenario...");
+        let cat = Command::new("cat")
+            .args([format!("{}/{}.sql", target_folder.as_str(), dump_scenario)])
+            .stdout(Stdio::piped())
+            .spawn();
+
+        Command::new("mysql")
+            .args([
+                format!("--host={}", self.host),
+                format!("--user={}", self.username),
+                format!("--password={}", self.password),
+                format!("--port={}", "4006"),
+                format!("--max_allowed_packet={}", "1024M"),
+                format!("{}", dump_scenario),
+            ])
+            .stdin(cat.ok().unwrap().stdout.unwrap())
+            .output()
+            .expect("Couldn't import db")
+    }
+
     pub fn dump_tags(&self, ssh_alias: String) -> Output {
         Command::new("ssh")
         .args([
-            &ssh_alias,
-            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", self.host, self.username, self.password, self.scenarios_db),
+            ssh_alias,
+            format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", self.host, self.username, self.password, self.scenarios_db),
         ])
         .output()
         .expect("Couldn't get the dump...")
@@ -46,8 +96,8 @@ impl Client {
     pub fn dump_scenario(&self, ssh_alias: String, dump_scenario: &str) -> Output {
         Command::new("ssh")
         .args([
-            &ssh_alias,
-            &format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {}", self.host, self.username, self.password, dump_scenario),
+            ssh_alias,
+            format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {}", self.host, self.username, self.password, dump_scenario),
         ])
         .output()
         .expect("Couldn't get the dump...")

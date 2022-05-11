@@ -2,7 +2,7 @@ use clap::{Arg, ArgMatches, Command};
 use dotenv;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
-use std::io::{ Write, Error };
+use std::io::{ Write, Error, ErrorKind };
 use std::path::PathBuf;
 use std::str;
 
@@ -34,13 +34,41 @@ fn perform_dump_tags(client_definition: &JsonValue) -> Result<usize, Error> {
 fn perform_dump_scenario(
     client_definition: &JsonValue,
     args: ArgMatches,
-) -> Result<usize, std::io::Error> {
-    println!("[INFO]: dumping scenario...");
+) -> Result<usize, Error> {
 
-    let dump_scenario = args.value_of("scenario").unwrap();
     let client = Client::new(client_definition);
-    let output = client.dump_scenario(dotenv::var("SSH_ALIAS").unwrap(), dump_scenario);
-    write(output.stdout, dump_scenario)
+
+    // 1. dump_scenario. TODO: add parameter to skip this step
+    let dump_scenario = args.value_of("scenario").unwrap();
+    let dump_was_created = match args.is_present("skip_dump_creation") {
+        true => true,
+        _ => {
+            println!("[INFO]: dumping scenario...");
+            let output = client.dump_scenario(dotenv::var("SSH_ALIAS").unwrap(), dump_scenario);
+            match write(output.stdout, dump_scenario) {
+                Ok(_) => true,
+                _ => false,
+            }
+        }
+    };
+
+    // 2. import scenario
+    match dump_was_created {
+        true => {
+            match hosts_file().get("local") {
+                Some(local_definition) => {
+                    println!("[INFO]: copying scenario...");
+                    let local_client = Client::new(local_definition);
+                    local_client.dump_to_db(dump_scenario);
+                    Ok(1)
+                }
+                None => {
+                    return Err(Error::new(ErrorKind::Interrupted, "Localhost not defined..."))
+                }
+            }
+        }
+        false => Err(Error::new(ErrorKind::Interrupted, "Dump couldn't be created...")),
+    }
 }
 
 fn perform(client_definition: &JsonValue, args: ArgMatches) {
@@ -50,7 +78,7 @@ fn perform(client_definition: &JsonValue, args: ArgMatches) {
         _ => unreachable!(),
     };
     match response {
-        Ok(_) => println!("[INFO]: File successfully created"),
+        Ok(_) => println!("[INFO]: Process succesfully executed"),
         _ => println!("[ERROR]: Couldn't create file"),
     }
 }
@@ -84,6 +112,13 @@ fn main() -> Result<(), ()> {
                 .long("scenario")
                 .help("Name of scenario to dump. Only used for action `dump-scenario`.")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::new("skip_dump_creation")
+                .long("skip_dump_creation")
+                .help("Skip the creation of the dump.")
+                .takes_value(false)
+                .required(false)
         )
         .get_matches();
 
