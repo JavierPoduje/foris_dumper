@@ -1,11 +1,11 @@
-# Migrator
+# Foris Dumper
 
 Import and export remote and local scenarios from DarwinEd.
 
 ## Dependencies
 
 1. [Rust](https://www.rust-lang.org/tools/install).
-2. [Darwined](https://github.com/Foris/darwined).
+2. [Foris' Darwin](https://github.com/Foris/darwined).
 3. ssh connection to DarwinEd.
 
 ## Initial setup
@@ -22,17 +22,32 @@ cp hosts.example.json hosts.json
 
 ## Use
 
-Bring remote `tags`:
-```sh
-cargo run -- --client <client>
+```command
+cargo run -- --client <my-client> --action <my-action> <options>
 ```
 
-Example (assuming `hyades` is a client defined in the hosts.json file):
-```sh
-cargo run -- --client hyades
+### Examples
+
+- Import `tags`:
+```command
+cargo run -- --client some_client --action dump-tags
 ```
 
-## Todo
+- Dump remote `scenario` and import it in your local Darwin:
+```command
+cargo run -- --client some_client --action dump-scenario --scenario some_scenario
+```
 
-1. import scenario to remote.
-2. export scenarios from local to remote.
+- Import remote `scenario` without creating the dump:
+```command
+cargo run -- --client some_client --action dump-scenario --scenario some_scenario --skip_dump_creation
+```
+
+### Descriptions
+
+|Actions|Description|
+|---|---|
+|<kbd>client</kbd>|Name of the source client|
+|<kbd>action</kbd>|Action to execute (options: `dump-scenario`, `dump-tags`)|
+|<kbd>scenario</kbd>|Scenario to dump. Only used with the `dump-scenario` action|
+|<kbd>skip_dump_creation</kbd>|Skip the creation of the dump. Only used with the `dump-scenario` action|
