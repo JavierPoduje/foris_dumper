@@ -2,11 +2,14 @@ use clap::{Arg, ArgMatches, Command};
 use dotenv;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
-use std::io::{ Write, Error, ErrorKind };
+use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
 use std::str;
 
+mod action;
 mod client;
+
+use crate::action::Action;
 use crate::client::Client;
 
 const FILE_NAME: &str = "hosts.json";
@@ -27,15 +30,12 @@ fn write(raw_output: Vec<u8>, filename: &str) -> Result<usize, Error> {
 fn perform_dump_tags(client_definition: &JsonValue) -> Result<usize, Error> {
     println!("[INFO]: dumping tags...");
     let client = Client::new(client_definition);
-    let output = client.dump_tags(dotenv::var("SSH_ALIAS").unwrap());
-    write(output.stdout, &client.scenarios_db)
+    let scenario_db = client.scenarios_db.clone();
+    let output = Action::new(client).dump_tags(dotenv::var("SSH_ALIAS").unwrap());
+    write(output.stdout, &scenario_db)
 }
 
-fn perform_dump_scenario(
-    client_definition: &JsonValue,
-    args: ArgMatches,
-) -> Result<usize, Error> {
-
+fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
     let client = Client::new(client_definition);
 
     // 1. dump_scenario. TODO: add parameter to skip this step
@@ -44,7 +44,8 @@ fn perform_dump_scenario(
         true => true,
         _ => {
             println!("[INFO]: dumping scenario...");
-            let output = client.dump_scenario(dotenv::var("SSH_ALIAS").unwrap(), dump_scenario);
+            let output =
+                Action::new(client).dump_scenario(dotenv::var("SSH_ALIAS").unwrap(), dump_scenario);
             match write(output.stdout, dump_scenario) {
                 Ok(_) => true,
                 _ => false,
@@ -54,20 +55,24 @@ fn perform_dump_scenario(
 
     // 2. import scenario
     match dump_was_created {
-        true => {
-            match hosts_file().get("local") {
-                Some(local_definition) => {
-                    println!("[INFO]: copying scenario...");
-                    let local_client = Client::new(local_definition);
-                    local_client.dump_to_db(dump_scenario);
-                    Ok(1)
-                }
-                None => {
-                    return Err(Error::new(ErrorKind::Interrupted, "Localhost not defined..."))
-                }
+        true => match hosts_file().get("local") {
+            Some(local_definition) => {
+                println!("[INFO]: copying scenario...");
+                let folder = dotenv::var("TARGET_FOLDER").unwrap();
+                Action::new(Client::new(local_definition)).import_scenario(folder, dump_scenario);
+                Ok(1)
             }
-        }
-        false => Err(Error::new(ErrorKind::Interrupted, "Dump couldn't be created...")),
+            None => {
+                return Err(Error::new(
+                    ErrorKind::Interrupted,
+                    "Localhost not defined...",
+                ))
+            }
+        },
+        false => Err(Error::new(
+            ErrorKind::Interrupted,
+            "Dump couldn't be created...",
+        )),
     }
 }
 
@@ -118,7 +123,7 @@ fn main() -> Result<(), ()> {
                 .long("skip_dump_creation")
                 .help("Skip the creation of the dump.")
                 .takes_value(false)
-                .required(false)
+                .required(false),
         )
         .get_matches();
 
