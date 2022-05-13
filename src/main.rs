@@ -8,9 +8,11 @@ use std::str;
 
 mod action;
 mod client;
+mod file_manager;
 
-use crate::action::Action;
-use crate::client::Client;
+use action::Action;
+use client::Client;
+use file_manager::FileManager;
 
 const FILE_NAME: &str = "hosts.json";
 
@@ -32,13 +34,13 @@ fn perform_dump_tags(client_definition: &JsonValue) -> Result<usize, Error> {
     let client = Client::new(client_definition);
     let scenario_db = client.scenarios_db.clone();
     let output = Action::new(client).dump_tags(dotenv::var("SSH_ALIAS").unwrap());
-    write(output.stdout, &scenario_db)
+    FileManager::write(output.stdout, &scenario_db)
 }
 
 fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
     let client = Client::new(client_definition);
 
-    // 1. dump_scenario. TODO: add parameter to skip this step
+    // 1. dump_scenario
     let dump_scenario = args.value_of("scenario").unwrap();
     let dump_was_created = match args.is_present("skip_dump_creation") {
         true => true,

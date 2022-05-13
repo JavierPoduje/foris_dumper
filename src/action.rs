@@ -8,7 +8,7 @@ pub struct Action {
 
 impl Action {
     pub fn new(client: Client) -> Self {
-        Action { client: client }
+        Action { client }
     }
 
     pub fn import_scenario(self, target_folder: String, dump_scenario: &str) -> Output {

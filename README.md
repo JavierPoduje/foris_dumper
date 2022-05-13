@@ -45,9 +45,9 @@ cargo run -- --client some_client --action dump-scenario --scenario some_scenari
 
 ### Descriptions
 
-|Actions|Description|
-|---|---|
-|<div align="center"><kbd>client</kbd></div>|Name of the source client|
-|<div align="center"><kbd>action</kbd></div>|Action to execute (options: `dump-scenario`, `dump-tags`)|
-|<div align="center"><kbd>scenario</kbd></div>|Scenario to dump. Only used with the `dump-scenario` action|
-|<div align="center"><kbd>skip_dump_creation</kbd></div>|Skip the creation of the dump. Only used with the `dump-scenario` action|
+|Actions|Description|Ordinality|
+|---|---|---|
+|<div align="center"><kbd>client</kbd></div>|Name of the source client|<div align="center">required</div>|
+|<div align="center"><kbd>action</kbd></div>|Action to execute (options: `dump-scenario`, `dump-tags`)|<div align="center">required</div>|
+|<div align="center"><kbd>scenario</kbd></div>|Scenario to dump (only for `dump-scenario` action)|<div align="center">required</div>|
+|<div align="center"><kbd>skip_dump_creation</kbd></div>|Skip the creation of the dump (only for `dump-scenario` action)|<div align="center">optional</div>|
