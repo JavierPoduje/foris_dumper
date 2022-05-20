@@ -32,22 +32,26 @@ fn write(raw_output: Vec<u8>, filename: &str) -> Result<usize, Error> {
 fn perform_dump_tags(client_definition: &JsonValue) -> Result<usize, Error> {
     println!("[INFO]: dumping tags...");
     let client = Client::new(client_definition);
+    let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
+    let filter = dotenv::var("TARGET_FOLDER").unwrap();
+
     let scenario_db = client.scenarios_db.clone();
-    let output = Action::new(client).dump_tags(dotenv::var("SSH_ALIAS").unwrap());
+    let output = Action::new(client).dump_tags(ssh_alias);
     FileManager::write(output.stdout, &scenario_db)
 }
 
 fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
     let client = Client::new(client_definition);
+    let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
+    let folder = dotenv::var("TARGET_FOLDER").unwrap();
 
     // 1. dump_scenario
     let dump_scenario = args.value_of("scenario").unwrap();
     let dump_was_created = match args.is_present("skip_dump_creation") {
         true => true,
-        _ => {
+        false => {
             println!("[INFO]: dumping scenario...");
-            let output =
-                Action::new(client).dump_scenario(dotenv::var("SSH_ALIAS").unwrap(), dump_scenario);
+            let output = Action::new(client).dump_scenario(ssh_alias, dump_scenario);
             match write(output.stdout, dump_scenario) {
                 Ok(_) => true,
                 _ => false,
@@ -60,7 +64,6 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
         true => match hosts_file().get("local") {
             Some(local_definition) => {
                 println!("[INFO]: copying scenario...");
-                let folder = dotenv::var("TARGET_FOLDER").unwrap();
                 Action::new(Client::new(local_definition)).import_scenario(folder, dump_scenario);
                 Ok(1)
             }
@@ -127,15 +130,31 @@ fn main() -> Result<(), ()> {
                 .takes_value(false)
                 .required(false),
         )
+        .arg(
+            Arg::new("skip_insertion")
+                .long("skip_insertion")
+                .help("Skip the insertion of the dump content on the DB")
+                .takes_value(false)
+                .required(false),
+        )
         .get_matches();
 
     // Assert commands integrity
-    if args.value_of("action").unwrap() == "dump-scenario" {
-        assert!(
-            args.value_of("scenario").is_some(),
-            "The `scenario` is necessary to perform the `dump-scenario` action"
-        );
-    };
+    match args.value_of("action").unwrap() {
+        "dump-scenario" => {
+            assert!(
+                args.value_of("scenario").is_some(),
+                "The `scenario` is necessary to perform the `dump-scenario` action"
+            );
+        }
+        "dump-tags" => {
+            assert!(
+                args.value_of("scenario").is_none(),
+                "The paremeter `scenario` only should be used with the `dump-scenario` action"
+            )
+        }
+        _ => unreachable!(),
+    }
 
     // Execute
     match hosts_file().get(args.value_of("client").unwrap()) {
