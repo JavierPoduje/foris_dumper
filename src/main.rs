@@ -2,8 +2,7 @@ use clap::{Arg, ArgMatches, Command};
 use dotenv;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
-use std::io::{Error, ErrorKind, Write};
-use std::path::PathBuf;
+use std::io::{Error, ErrorKind};
 use std::str;
 
 mod action;
@@ -22,22 +21,42 @@ fn hosts_file() -> JsonValue {
     json
 }
 
-fn write(raw_output: Vec<u8>, filename: &str) -> Result<usize, Error> {
-    println!("[INFO]: writing dump file...");
-    let target_folder = dotenv::var("TARGET_FOLDER").unwrap();
-    let path = PathBuf::from(target_folder.as_str()).join(&format!("{}.sql", filename));
-    File::create(path)?.write(&raw_output)
-}
-
-fn perform_dump_tags(client_definition: &JsonValue) -> Result<usize, Error> {
+fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
     println!("[INFO]: dumping tags...");
     let client = Client::new(client_definition);
     let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
-    let filter = dotenv::var("TARGET_FOLDER").unwrap();
-
     let scenario_db = client.scenarios_db.clone();
-    let output = Action::new(client).dump_tags(ssh_alias);
-    FileManager::write(output.stdout, &scenario_db)
+    let folder = dotenv::var("TARGET_FOLDER").unwrap();
+
+    let dump_created = match args.is_present("skip_dump_creation") {
+        true => true,
+        false => {
+            println!("[INFO]: dumping scenario...");
+            let output = Action::new(client).dump_tags(ssh_alias);
+            match FileManager::write(output.stdout, &scenario_db) {
+                Ok(_) => true,
+                _ => false,
+            }
+        }
+    };
+
+    match dump_created {
+        true => match hosts_file().get("local") {
+            Some(local_definition) => {
+                println!("[INFO]: creating tags on local scenarios_db");
+                Action::new(Client::new(local_definition)).import_tags(folder, &scenario_db);
+                Ok(1)
+            }
+            None => Err(Error::new(
+                ErrorKind::Interrupted,
+                "Localhost not defined...",
+            )),
+        },
+        false => Err(Error::new(
+            ErrorKind::Interrupted,
+            "Dump couldn't be created...",
+        )),
+    }
 }
 
 fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
@@ -52,7 +71,7 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
         false => {
             println!("[INFO]: dumping scenario...");
             let output = Action::new(client).dump_scenario(ssh_alias, dump_scenario);
-            match write(output.stdout, dump_scenario) {
+            match FileManager::write(output.stdout, dump_scenario) {
                 Ok(_) => true,
                 _ => false,
             }
@@ -67,12 +86,10 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
                 Action::new(Client::new(local_definition)).import_scenario(folder, dump_scenario);
                 Ok(1)
             }
-            None => {
-                return Err(Error::new(
-                    ErrorKind::Interrupted,
-                    "Localhost not defined...",
-                ))
-            }
+            None => Err(Error::new(
+                ErrorKind::Interrupted,
+                "Localhost not defined...",
+            )),
         },
         false => Err(Error::new(
             ErrorKind::Interrupted,
@@ -83,7 +100,7 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
 
 fn perform(client_definition: &JsonValue, args: ArgMatches) {
     let response = match args.value_of("action") {
-        Some(value) if value == "dump-tags" => perform_dump_tags(client_definition),
+        Some(value) if value == "dump-tags" => perform_dump_tags(client_definition, args),
         Some(value) if value == "dump-scenario" => perform_dump_scenario(client_definition, args),
         _ => unreachable!(),
     };

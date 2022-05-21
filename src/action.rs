@@ -59,6 +59,45 @@ impl Action {
             .expect("Couldn't import db")
     }
 
+    pub fn import_tags(self, target_folder: String, scenarios_db: &str) -> Output {
+        // 1. delete current tags and model_extensions
+        println!("[INFO]: deleting current tags...");
+        Command::new("mysql")
+            .args([
+                format!("--host={}", self.client.host),
+                format!("--user={}", self.client.username),
+                format!("--password={}", self.client.password),
+                format!("--port={}", "4006"),
+                format!("-e DELETE from {}.tags", self.client.scenarios_db),
+            ])
+            .output()
+            .expect("Couldn't delete tags and/or model_extensions");
+
+
+        // 2. importing tags and model_extensions
+        println!("[INFO]: importing tags and model_extensions...");
+        let cat = Command::new("cat")
+            .args([format!("{}{}.sql", target_folder.as_str(), scenarios_db)])
+            .stdout(Stdio::piped())
+            .spawn();
+
+        let output = Command::new("mysql")
+            .args([
+                format!("--host={}", self.client.host),
+                format!("--user={}", self.client.username),
+                format!("--password={}", self.client.password),
+                format!("--port={}", "4006"),
+                format!("{}", self.client.scenarios_db),
+            ])
+            .stdin(cat.ok().unwrap().stdout.unwrap())
+            .output()
+            .expect("Couldn't import tags/model_extensions");
+
+        println!("{:?}", output);
+
+        output
+    }
+
     pub fn dump_tags(self, ssh_alias: String) -> Output {
         Command::new("ssh")
         .args([
