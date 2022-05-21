@@ -10,12 +10,12 @@ Import and export remote and local scenarios from DarwinEd.
 
 ## Initial setup
 
-Copy and fill the .env file:
+Copy and fill the `.env` file:
 ```sh
 cp env.example .env
 ```
 
-Copy and fill the hosts.json file:
+Copy and fill the `hosts.json` file:
 ```sh
 cp hosts.example.json hosts.json
 ```
@@ -50,4 +50,5 @@ cargo run -- --client some_client --action dump-scenario --scenario some_scenari
 |<div align="center"><kbd>client</kbd></div>|Name of the source client|<div align="center">required</div>|
 |<div align="center"><kbd>action</kbd></div>|Action to execute (options: `dump-scenario`, `dump-tags`)|<div align="center">required</div>|
 |<div align="center"><kbd>scenario</kbd></div>|Scenario to dump (only for `dump-scenario` action)|<div align="center">required</div>|
-|<div align="center"><kbd>skip_dump_creation</kbd></div>|Skip the creation of the dump (only for `dump-scenario` action)|<div align="center">optional</div>|
+|<div align="center"><kbd>skip_dump_creation</kbd></div>|Skip the creation of the dump|<div align="center">optional</div>|
+|<div align="center"><kbd>skip_insertion</kbd></div>|Skip the insertion process after the dump creation|<div align="center">optional</div>|
