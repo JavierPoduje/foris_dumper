@@ -80,8 +80,7 @@ impl Action {
             .args([format!("{}{}.sql", target_folder.as_str(), scenarios_db)])
             .stdout(Stdio::piped())
             .spawn();
-
-        let output = Command::new("mysql")
+        Command::new("mysql")
             .args([
                 format!("--host={}", self.client.host),
                 format!("--user={}", self.client.username),
@@ -91,11 +90,7 @@ impl Action {
             ])
             .stdin(cat.ok().unwrap().stdout.unwrap())
             .output()
-            .expect("Couldn't import tags/model_extensions");
-
-        println!("{:?}", output);
-
-        output
+            .expect("Couldn't import tags/model_extensions")
     }
 
     pub fn dump_tags(self, ssh_alias: String) -> Output {

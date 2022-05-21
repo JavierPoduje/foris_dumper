@@ -22,7 +22,6 @@ fn hosts_file() -> JsonValue {
 }
 
 fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
-    println!("[INFO]: dumping tags...");
     let client = Client::new(client_definition);
     let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
     let scenario_db = client.scenarios_db.clone();
@@ -31,7 +30,7 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
     let dump_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
-            println!("[INFO]: dumping scenario...");
+            println!("[INFO]: dumping tags...");
             let output = Action::new(client).dump_tags(ssh_alias);
             match FileManager::write(output.stdout, &scenario_db) {
                 Ok(_) => true,
@@ -39,6 +38,10 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
             }
         }
     };
+
+    if args.is_present("skip_insertion") {
+        return Ok(1);
+    }
 
     match dump_created {
         true => match hosts_file().get("local") {
@@ -77,6 +80,10 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
             }
         }
     };
+
+    if args.is_present("skip_insertion") {
+        return Ok(1);
+    }
 
     // 2. import scenario
     match dump_was_created {
