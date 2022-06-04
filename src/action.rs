@@ -61,7 +61,7 @@ impl Action {
 
     pub fn import_tags(self, target_folder: String, scenarios_db: &str) -> Output {
         // 1. delete current tags and model_extensions
-        println!("[INFO]: deleting current tags...");
+        println!("[INFO]: deleting current tags and model_extensions...");
         Command::new("mysql")
             .args([
                 format!("--host={}", self.client.host),
@@ -71,7 +71,17 @@ impl Action {
                 format!("-e DELETE from {}.tags", self.client.scenarios_db),
             ])
             .output()
-            .expect("Couldn't delete tags and/or model_extensions");
+            .expect("Couldn't delete tags");
+        Command::new("mysql")
+            .args([
+                format!("--host={}", self.client.host),
+                format!("--user={}", self.client.username),
+                format!("--password={}", self.client.password),
+                format!("--port={}", "4006"),
+                format!("-e DELETE from {}.model_extensions", self.client.scenarios_db),
+            ])
+            .output()
+            .expect("Couldn't delete model_extensions");
 
 
         // 2. importing tags and model_extensions
@@ -97,7 +107,17 @@ impl Action {
         Command::new("ssh")
         .args([
             ssh_alias,
-            format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {} tags model_extensions", self.client.host, self.client.username, self.client.password, self.client.scenarios_db),
+            format!("mysqldump \
+                -e \
+                --host={} \
+                --user={} \
+                --password={} \
+                --port=3306 \
+                --max_allowed_packet=1024M \
+                --no-create-info \
+                --complete-insert \
+                --compact {} \
+                tags model_extensions", self.client.host, self.client.username, self.client.password, self.client.scenarios_db),
         ])
         .output()
         .expect("Couldn't get the dump...")

@@ -30,7 +30,7 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
     let dump_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
-            println!("[INFO]: dumping tags...");
+            println!("[INFO]: dumping scenario '{}.sql' in target folder...", scenario_db);
             let output = Action::new(client).dump_tags(ssh_alias);
             match FileManager::write(output.stdout, &scenario_db) {
                 Ok(_) => true,
@@ -72,7 +72,6 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
     let dump_was_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
-            println!("[INFO]: dumping scenario...");
             let output = Action::new(client).dump_scenario(ssh_alias, dump_scenario);
             match FileManager::write(output.stdout, dump_scenario) {
                 Ok(_) => true,
