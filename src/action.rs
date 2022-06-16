@@ -78,11 +78,13 @@ impl Action {
                 format!("--user={}", self.client.username),
                 format!("--password={}", self.client.password),
                 format!("--port={}", "4006"),
-                format!("-e DELETE from {}.model_extensions", self.client.scenarios_db),
+                format!(
+                    "-e DELETE from {}.model_extensions",
+                    self.client.scenarios_db
+                ),
             ])
             .output()
             .expect("Couldn't delete model_extensions");
-
 
         // 2. importing tags and model_extensions
         println!("[INFO]: importing tags and model_extensions...");
@@ -105,9 +107,11 @@ impl Action {
 
     pub fn dump_tags(self, ssh_alias: String) -> Output {
         Command::new("ssh")
-        .args([
-            ssh_alias,
-            format!("mysqldump \
+            .args([
+                ssh_alias,
+                format!(
+                    "
+                mysqldump \
                 -e \
                 --host={} \
                 --user={} \
@@ -117,19 +121,35 @@ impl Action {
                 --no-create-info \
                 --complete-insert \
                 --compact {} \
-                tags model_extensions", self.client.host, self.client.username, self.client.password, self.client.scenarios_db),
-        ])
-        .output()
-        .expect("Couldn't get the dump...")
+                tags model_extensions",
+                    self.client.host,
+                    self.client.username,
+                    self.client.password,
+                    self.client.scenarios_db
+                ),
+            ])
+            .output()
+            .expect("Couldn't get the dump...")
     }
 
     pub fn dump_scenario(self, ssh_alias: String, dump_scenario: &str) -> Output {
         Command::new("ssh")
-        .args([
-            ssh_alias,
-            format!("mysqldump -e --host={} --user={} --password={} --port=3306 --max_allowed_packet=1024M {}", self.client.host, self.client.username, self.client.password, dump_scenario),
-        ])
-        .output()
-        .expect("Couldn't get the dump...")
+            .args([
+                ssh_alias,
+                format!(
+                    "
+                mysqldump \
+                -e \
+                --host={} \
+                --user={} \
+                --password={} \
+                --port=3306 \
+                --max_allowed_packet=1024M \
+                {}",
+                    self.client.host, self.client.username, self.client.password, dump_scenario
+                ),
+            ])
+            .output()
+            .expect("Couldn't get the dump...")
     }
 }
