@@ -1,6 +1,5 @@
 use std::process::{Command, Output, Stdio};
-
-use crate::client::Client;
+use crate::{client::Client, logger::{logger::Logger, types::LogType}};
 
 pub struct Action {
     pub client: Client,
@@ -13,7 +12,7 @@ impl Action {
 
     pub fn import_scenario(self, target_folder: String, dump_scenario: &str) -> Output {
         // 1. delete db on localhost
-        println!("[INFO]: deleting scenario...");
+        Logger::send("deleting scenario...", LogType::Info);
         Command::new("mysql")
             .args([
                 format!("--host={}", self.client.host),
@@ -26,7 +25,7 @@ impl Action {
             .expect("Couldn't drop db");
 
         // 2. create db
-        println!("[INFO]: creating scenario...");
+        Logger::send("creating scenario...", LogType::Info);
         Command::new("mysql")
             .args([
                 format!("--host={}", self.client.host),
@@ -39,7 +38,7 @@ impl Action {
             .expect("Couldn't drop db");
 
         // 3. import db
-        println!("[INFO]: importing scenario...");
+        Logger::send("importing scenario...", LogType::Info);
         let cat = Command::new("cat")
             .args([format!("{}/{}.sql", target_folder.as_str(), dump_scenario)])
             .stdout(Stdio::piped())
@@ -61,7 +60,7 @@ impl Action {
 
     pub fn import_tags(self, target_folder: String, scenarios_db: &str) -> Output {
         // 1. delete current tags and model_extensions
-        println!("[INFO]: deleting current tags and model_extensions...");
+        Logger::send("deleting current tags and model_extensions...", LogType::Info);
         Command::new("mysql")
             .args([
                 format!("--host={}", self.client.host),
@@ -87,7 +86,7 @@ impl Action {
             .expect("Couldn't delete model_extensions");
 
         // 2. importing tags and model_extensions
-        println!("[INFO]: importing tags and model_extensions...");
+        Logger::send("importing tags and model_extensions...", LogType::Info);
         let cat = Command::new("cat")
             .args([format!("{}{}.sql", target_folder.as_str(), scenarios_db)])
             .stdout(Stdio::piped())

@@ -8,10 +8,12 @@ use std::str;
 mod action;
 mod client;
 mod file_manager;
+mod logger;
 
 use action::Action;
 use client::Client;
 use file_manager::FileManager;
+use logger::{logger::Logger, types::LogType};
 
 const FILE_NAME: &str = "hosts.json";
 
@@ -30,7 +32,10 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
     let dump_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
-            println!("[INFO]: dumping scenario '{}.sql' in target folder...", scenario_db);
+            Logger::send(
+                &format!("dumping scenario '{}.sql' in target folder...", scenario_db).to_string(),
+                LogType::Info,
+            );
             let output = Action::new(client).dump_tags(ssh_alias);
             match FileManager::write(output.stdout, &scenario_db) {
                 Ok(_) => true,
@@ -46,7 +51,7 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
     match dump_created {
         true => match hosts_file().get("local") {
             Some(local_definition) => {
-                println!("[INFO]: creating tags on local scenarios_db");
+                Logger::send("creating tags on local scenarios_db", LogType::Info);
                 Action::new(Client::new(local_definition)).import_tags(folder, &scenario_db);
                 Ok(1)
             }
@@ -88,7 +93,7 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
     match dump_was_created {
         true => match hosts_file().get("local") {
             Some(local_definition) => {
-                println!("[INFO]: copying scenario...");
+                Logger::send("copying scenario...", LogType::Info);
                 Action::new(Client::new(local_definition)).import_scenario(folder, dump_scenario);
                 Ok(1)
             }
@@ -111,8 +116,8 @@ fn perform(client_definition: &JsonValue, args: ArgMatches) {
         _ => unreachable!(),
     };
     match response {
-        Ok(_) => println!("[INFO]: Process succesfully executed"),
-        _ => println!("[ERROR]: Couldn't create file"),
+        Ok(_) => Logger::send("Process succesfully executed", LogType::Info),
+        _ => Logger::send("Couldn't create file", LogType::Error),
     }
 }
 
@@ -162,7 +167,7 @@ fn main() -> Result<(), ()> {
         )
         .get_matches();
 
-    // Assert commands integrity
+    // Assert commands<->parameters integrity
     match args.value_of("action").unwrap() {
         "dump-scenario" => {
             assert!(
@@ -186,7 +191,7 @@ fn main() -> Result<(), ()> {
             Ok(())
         }
         None => {
-            println!("[ERROR]: Client not found in the hosts.json file...");
+            Logger::send("Client not found in the hosts.json file...", LogType::Error);
             Err(())
         }
     }
