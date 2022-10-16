@@ -33,14 +33,14 @@ cargo run -- --client <my-client> --action <my-action> <options>
 cargo run -- --client some_client --action tags
 ```
 
-- Dump remote `scenario` and import it in your local Darwin:
+- Dump remote scenario using `db_name` and import it in your local Darwin:
 ```command
-cargo run -- --client some_client --action scenarios --scenario some_scenario
+cargo run -- --client some_client --action scenarios --db_name some_scenario
 ```
 
-- Import remote `scenario` without creating the dump:
+- Import remote scenario using `db_name` without creating the dump:
 ```command
-cargo run -- --client some_client --action scenarios --scenario some_scenario --skip_dump_creation
+cargo run -- --client some_client --action scenarios --db_name some_scenario --skip_dump_creation
 ```
 
 ### Descriptions
@@ -49,6 +49,6 @@ cargo run -- --client some_client --action scenarios --scenario some_scenario --
 |---|---|---|
 |<div align="center"><kbd>client</kbd></div>|Name of the source client|<div align="center">required</div>|
 |<div align="center"><kbd>action</kbd></div>|Action to execute (options: `scenarios`, `tags`)|<div align="center">required</div>|
-|<div align="center"><kbd>scenario</kbd></div>|Scenario to dump (only for `scenarios` action)|<div align="center">required</div>|
+|<div align="center"><kbd>db_name</kbd></div>|Scenario to dump (only for `scenarios` action)|<div align="center">required</div>|
 |<div align="center"><kbd>skip_dump_creation</kbd></div>|Skip the creation of the dump|<div align="center">optional</div>|
 |<div align="center"><kbd>skip_insertion</kbd></div>|Skip the insertion process after the dump creation|<div align="center">optional</div>|
