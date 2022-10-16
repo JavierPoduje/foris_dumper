@@ -51,7 +51,7 @@ impl Action {
                 format!("--password={}", self.client.password),
                 format!("--port={}", "4006"),
                 format!("--max_allowed_packet={}", "1024M"),
-                format!("{}", dump_scenario),
+                dump_scenario.to_string(),
             ])
             .stdin(cat.ok().unwrap().stdout.unwrap())
             .output()

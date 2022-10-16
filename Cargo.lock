@@ -115,18 +115,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bring_tags"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "colored",
- "dotenv",
- "mysql",
- "serde_json",
-]
-
-[[package]]
 name = "bufstream"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -416,6 +404,18 @@ name = "foreign-types-shared"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
+
+[[package]]
+name = "foris_pull"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "colored",
+ "dotenv",
+ "mysql",
+ "serde_json",
+]
 
 [[package]]
 name = "form_urlencoded"

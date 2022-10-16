@@ -1,5 +1,5 @@
-use clap::{Arg, ArgMatches, Command};
-use dotenv;
+//use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgMatches};
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
 use std::io::{Error, ErrorKind};
@@ -7,6 +7,7 @@ use std::str;
 
 mod action;
 mod client;
+mod command;
 mod file_manager;
 mod logger;
 
@@ -33,14 +34,11 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
         true => true,
         false => {
             Logger::send(
-                &format!("dumping scenario '{}.sql' in target folder...", scenario_db).to_string(),
+                &format!("dumping scenario '{}.sql' in target folder...", scenario_db),
                 LogType::Info,
             );
             let output = Action::new(client).dump_tags(ssh_alias);
-            match FileManager::write(output.stdout, &scenario_db) {
-                Ok(_) => true,
-                _ => false,
-            }
+            matches!(FileManager::write(output.stdout, &scenario_db), Ok(_))
         }
     };
 
@@ -78,10 +76,7 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
         true => true,
         false => {
             let output = Action::new(client).dump_scenario(ssh_alias, dump_scenario);
-            match FileManager::write(output.stdout, dump_scenario) {
-                Ok(_) => true,
-                _ => false,
-            }
+            matches!(FileManager::write(output.stdout, dump_scenario), Ok(_))
         }
     };
 
@@ -110,6 +105,7 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
 }
 
 fn perform(client_definition: &JsonValue, args: ArgMatches) {
+    Logger::send("Start", LogType::Info);
     let response = match args.value_of("action") {
         Some(value) if value == "dump-tags" => perform_dump_tags(client_definition, args),
         Some(value) if value == "dump-scenario" => perform_dump_scenario(client_definition, args),
@@ -121,78 +117,19 @@ fn perform(client_definition: &JsonValue, args: ArgMatches) {
     }
 }
 
-fn main() -> Result<(), ()> {
-    let args = Command::new("Foris Dumps Handler")
-        .version("0.1")
-        .about("Manage remote and local Darwin's DBs.")
-        .arg(
-            Arg::new("client")
-                .long("client")
-                .help("name of the client (example: 'hyades')")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::new("action")
-                .long("action")
-                .takes_value(true)
-                .help(
-                    "Action to perform. Options: \
-                        * dump-tags
-                        * dump-scenario
-                ",
-                )
-                .possible_values(&["dump-tags", "dump-scenario"])
-                .required(true),
-        )
-        .arg(
-            Arg::new("scenario")
-                .long("scenario")
-                .help("Name of scenario to dump. Only used for action `dump-scenario`.")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::new("skip_dump_creation")
-                .long("skip_dump_creation")
-                .help("Skip the creation of the dump.")
-                .takes_value(false)
-                .required(false),
-        )
-        .arg(
-            Arg::new("skip_insertion")
-                .long("skip_insertion")
-                .help("Skip the insertion of the dump content on the DB")
-                .takes_value(false)
-                .required(false),
-        )
-        .get_matches();
+fn main() {
+    let comm = command::Command::new();
 
-    // Assert commands<->parameters integrity
-    match args.value_of("action").unwrap() {
-        "dump-scenario" => {
-            assert!(
-                args.value_of("scenario").is_some(),
-                "The `scenario` is necessary to perform the `dump-scenario` action"
-            );
-        }
-        "dump-tags" => {
-            assert!(
-                args.value_of("scenario").is_none(),
-                "The paremeter `scenario` only should be used with the `dump-scenario` action"
-            )
-        }
-        _ => unreachable!(),
-    }
-
-    // Execute
-    match hosts_file().get(args.value_of("client").unwrap()) {
-        Some(client_definition) => {
-            perform(client_definition, args);
-            Ok(())
-        }
-        None => {
-            Logger::send("Client not found in the hosts.json file...", LogType::Error);
-            Err(())
+    if let Err(message) = comm.validate() {
+        Logger::send(message, LogType::Error);
+    } else {
+        match hosts_file().get(comm.args.value_of("client").unwrap()) {
+            Some(client_definition) => {
+                perform(client_definition, comm.args);
+            }
+            None => {
+                Logger::send("Client not found in the hosts.json file...", LogType::Error);
+            }
         }
     }
 }

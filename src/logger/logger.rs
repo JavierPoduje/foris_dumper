@@ -15,10 +15,6 @@ impl Logger {
                 let stamp = format!("{} ERROR", Logger::time()).red();
                 println!("[{}]: {}", stamp, message);
             }
-            LogType::Warning => {
-                let stamp = format!("{} WARNING", Logger::time()).yellow();
-                println!("[{}]: {}", stamp, message);
-            }
         }
     }
 
