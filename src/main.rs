@@ -7,6 +7,7 @@ use std::str;
 mod action;
 mod client;
 mod command;
+mod config;
 mod file_manager;
 mod logger;
 
@@ -23,11 +24,15 @@ fn hosts_file() -> JsonValue {
     json
 }
 
-fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
+fn perform_dump_tags(
+    config: config::Config,
+    client_definition: &JsonValue,
+    args: ArgMatches,
+) -> Result<usize, Error> {
     let client = Client::new(client_definition);
-    let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
+    let ssh_alias = &config.ssh_alias;
     let scenario_db = client.scenarios_db.clone();
-    let folder = dotenv::var("TARGET_FOLDER").unwrap();
+    let folder = &config.target_folder;
 
     let dump_created = match args.is_present("skip_dump_creation") {
         true => true,
@@ -37,7 +42,10 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
                 LogType::Info,
             );
             let output = Action::new(client).dump_tags(ssh_alias);
-            matches!(FileManager::write(output.stdout, &scenario_db), Ok(_))
+            matches!(
+                FileManager::write(folder, output.stdout, &scenario_db),
+                Ok(_)
+            )
         }
     };
 
@@ -64,18 +72,26 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
     }
 }
 
-fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Result<usize, Error> {
+fn perform_dump_scenario(
+    config: config::Config,
+    client_definition: &JsonValue,
+    args: ArgMatches,
+) -> Result<usize, Error> {
     let client = Client::new(client_definition);
-    let ssh_alias = dotenv::var("SSH_ALIAS").unwrap();
-    let folder = dotenv::var("TARGET_FOLDER").unwrap();
+    let ssh_alias = &config.ssh_alias;
+    let folder = &config.target_folder;
 
     // 1. dump_scenario
     let dump_scenario = args.value_of("scenario").unwrap();
     let dump_was_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
+            Logger::send("dumping scenario...", LogType::Info);
             let output = Action::new(client).dump_scenario(ssh_alias, dump_scenario);
-            matches!(FileManager::write(output.stdout, dump_scenario), Ok(_))
+            matches!(
+                FileManager::write(folder, output.stdout, dump_scenario),
+                Ok(_)
+            )
         }
     };
 
@@ -103,11 +119,13 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
     }
 }
 
-fn perform(client_definition: &JsonValue, args: ArgMatches) {
+fn perform(config: config::Config, client_definition: &JsonValue, args: ArgMatches) {
     Logger::send("Start", LogType::Info);
     let response = match args.value_of("action") {
-        Some(value) if value == "tags" => perform_dump_tags(client_definition, args),
-        Some(value) if value == "scenarios" => perform_dump_scenario(client_definition, args),
+        Some(value) if value == "tags" => perform_dump_tags(config, client_definition, args),
+        Some(value) if value == "scenarios" => {
+            perform_dump_scenario(config, client_definition, args)
+        }
         _ => unreachable!(),
     };
     match response {
@@ -117,18 +135,21 @@ fn perform(client_definition: &JsonValue, args: ArgMatches) {
 }
 
 fn main() {
+    let config = config::Config::new();
     let comm = command::Command::new();
 
+    // validate commands integrity
     if let Err(message) = comm.validate() {
         Logger::send(message, LogType::Error);
-    } else {
-        match hosts_file().get(comm.args.value_of("client").unwrap()) {
-            Some(client_definition) => {
-                perform(client_definition, comm.args);
-            }
-            None => {
-                Logger::send("Client not found in the hosts.json file...", LogType::Error);
-            }
+        std::process::exit(0x0100);
+    }
+
+    match hosts_file().get(comm.args.value_of("client").unwrap()) {
+        Some(client_definition) => {
+            perform(config, client_definition, comm.args);
+        }
+        None => {
+            Logger::send("Client not found in the hosts.json file...", LogType::Error);
         }
     }
 }

@@ -57,20 +57,16 @@ impl Command {
         match self.args.value_of("action").unwrap() {
             "scenarios" => {
                 if self.args.value_of("scenario").is_some() {
-                    return Ok(true);
+                    Ok(true)
                 } else {
-                    return Err(
-                        "The `scenario` is necessary to perform the `scenarios` action",
-                    );
+                    Err("The `scenario` is necessary to perform the `scenarios` action")
                 }
             }
             "tags" => {
                 if self.args.value_of("scenario").is_none() {
-                    return Ok(true);
+                    Ok(true)
                 } else {
-                    return Err(
-                        "The paremeter `scenario` only should be used with the `scenarios` action",
-                    );
+                    Err("The paremeter `scenario` only should be used with the `scenarios` action")
                 }
             }
             _ => unreachable!(),

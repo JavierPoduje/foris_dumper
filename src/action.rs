@@ -1,5 +1,8 @@
+use crate::{
+    client::Client,
+    logger::{logger::Logger, types::LogType},
+};
 use std::process::{Command, Output, Stdio};
-use crate::{client::Client, logger::{logger::Logger, types::LogType}};
 
 pub struct Action {
     pub client: Client,
@@ -10,7 +13,7 @@ impl Action {
         Action { client }
     }
 
-    pub fn import_scenario(self, target_folder: String, dump_scenario: &str) -> Output {
+    pub fn import_scenario(self, target_folder: &str, dump_scenario: &str) -> Output {
         // 1. delete db on localhost
         Logger::send("deleting scenario...", LogType::Info);
         Command::new("mysql")
@@ -40,7 +43,7 @@ impl Action {
         // 3. import db
         Logger::send("importing scenario...", LogType::Info);
         let cat = Command::new("cat")
-            .args([format!("{}/{}.sql", target_folder.as_str(), dump_scenario)])
+            .args([format!("{}/{}.sql", target_folder, dump_scenario)])
             .stdout(Stdio::piped())
             .spawn();
 
@@ -58,9 +61,12 @@ impl Action {
             .expect("Couldn't import db")
     }
 
-    pub fn import_tags(self, target_folder: String, scenarios_db: &str) -> Output {
+    pub fn import_tags(self, target_folder: &str, scenarios_db: &str) -> Output {
         // 1. delete current tags and model_extensions
-        Logger::send("deleting current tags and model_extensions...", LogType::Info);
+        Logger::send(
+            "deleting current tags and model_extensions...",
+            LogType::Info,
+        );
         Command::new("mysql")
             .args([
                 format!("--host={}", self.client.host),
@@ -88,7 +94,7 @@ impl Action {
         // 2. importing tags and model_extensions
         Logger::send("importing tags and model_extensions...", LogType::Info);
         let cat = Command::new("cat")
-            .args([format!("{}{}.sql", target_folder.as_str(), scenarios_db)])
+            .args([format!("{}{}.sql", target_folder, scenarios_db)])
             .stdout(Stdio::piped())
             .spawn();
         Command::new("mysql")
@@ -97,17 +103,17 @@ impl Action {
                 format!("--user={}", self.client.username),
                 format!("--password={}", self.client.password),
                 format!("--port={}", "4006"),
-                format!("{}", self.client.scenarios_db),
+                self.client.scenarios_db,
             ])
             .stdin(cat.ok().unwrap().stdout.unwrap())
             .output()
             .expect("Couldn't import tags/model_extensions")
     }
 
-    pub fn dump_tags(self, ssh_alias: String) -> Output {
+    pub fn dump_tags(self, ssh_alias: &String) -> Output {
         Command::new("ssh")
             .args([
-                ssh_alias,
+                ssh_alias.to_string(),
                 format!(
                     "
                 mysqldump \
@@ -131,10 +137,10 @@ impl Action {
             .expect("Couldn't get the dump...")
     }
 
-    pub fn dump_scenario(self, ssh_alias: String, dump_scenario: &str) -> Output {
+    pub fn dump_scenario(self, ssh_alias: &String, dump_scenario: &str) -> Output {
         Command::new("ssh")
             .args([
-                ssh_alias,
+                ssh_alias.to_string(),
                 format!(
                     "
                 mysqldump \
