@@ -22,17 +22,17 @@ impl Command {
                     .takes_value(true)
                     .help(
                         "Action to perform. Options: \
-                        * dump-tags
-                        * dump-scenario
+                        * tags
+                        * scenarios
                 ",
                     )
-                    .possible_values(["dump-tags", "dump-scenario"])
+                    .possible_values(["tags", "scenarios"])
                     .required(true),
             )
             .arg(
                 Arg::new("scenario")
                     .long("scenario")
-                    .help("Name of scenario to dump. Only used for action `dump-scenario`.")
+                    .help("Name of scenario to dump. Only used for action `scenarios`.")
                     .takes_value(true),
             )
             .arg(
@@ -55,21 +55,21 @@ impl Command {
 
     pub fn validate(&self) -> Result<bool, &str> {
         match self.args.value_of("action").unwrap() {
-            "dump-scenario" => {
+            "scenarios" => {
                 if self.args.value_of("scenario").is_some() {
                     return Ok(true);
                 } else {
                     return Err(
-                        "The `scenario` is necessary to perform the `dump-scenario` action",
+                        "The `scenario` is necessary to perform the `scenarios` action",
                     );
                 }
             }
-            "dump-tags" => {
+            "tags" => {
                 if self.args.value_of("scenario").is_none() {
                     return Ok(true);
                 } else {
                     return Err(
-                        "The paremeter `scenario` only should be used with the `dump-scenario` action",
+                        "The paremeter `scenario` only should be used with the `scenarios` action",
                     );
                 }
             }

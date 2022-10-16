@@ -1,5 +1,4 @@
-//use clap::{Arg, ArgMatches, Command};
-use clap::{Arg, ArgMatches};
+use clap::ArgMatches;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
 use std::io::{Error, ErrorKind};
@@ -34,7 +33,7 @@ fn perform_dump_tags(client_definition: &JsonValue, args: ArgMatches) -> Result<
         true => true,
         false => {
             Logger::send(
-                &format!("dumping scenario '{}.sql' in target folder...", scenario_db),
+                &format!("dumping '{}.sql' in target folder...", scenario_db),
                 LogType::Info,
             );
             let output = Action::new(client).dump_tags(ssh_alias);
@@ -107,8 +106,8 @@ fn perform_dump_scenario(client_definition: &JsonValue, args: ArgMatches) -> Res
 fn perform(client_definition: &JsonValue, args: ArgMatches) {
     Logger::send("Start", LogType::Info);
     let response = match args.value_of("action") {
-        Some(value) if value == "dump-tags" => perform_dump_tags(client_definition, args),
-        Some(value) if value == "dump-scenario" => perform_dump_scenario(client_definition, args),
+        Some(value) if value == "tags" => perform_dump_tags(client_definition, args),
+        Some(value) if value == "scenarios" => perform_dump_scenario(client_definition, args),
         _ => unreachable!(),
     };
     match response {
