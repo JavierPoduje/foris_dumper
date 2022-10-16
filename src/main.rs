@@ -1,17 +1,16 @@
 use clap::ArgMatches;
 use serde_json::{from_reader, Value as JsonValue};
 use std::fs::File;
-use std::io::{Error, ErrorKind};
 use std::str;
 
-mod action;
+mod actions;
 mod client;
 mod command;
 mod config;
 mod file_manager;
 mod logger;
 
-use action::Action;
+use actions::{Action, ActionType};
 use client::Client;
 use file_manager::FileManager;
 use logger::{logger::Logger, types::LogType};
@@ -28,7 +27,7 @@ fn perform_dump_tags(
     config: config::Config,
     client_definition: &JsonValue,
     args: ArgMatches,
-) -> Result<usize, Error> {
+) -> Result<bool, &str> {
     let client = Client::new(client_definition);
     let ssh_alias = &config.ssh_alias;
     let scenario_db = client.scenarios_db.clone();
@@ -37,11 +36,13 @@ fn perform_dump_tags(
     let dump_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
-            Logger::send(
-                &format!("dumping '{}.sql' in target folder...", scenario_db),
-                LogType::Info,
+            let output = Action::new(&client, &scenario_db).perform(
+                ActionType::DumpTags,
+                folder,
+                None,
+                Some(ssh_alias),
             );
-            let output = Action::new(client).dump_tags(ssh_alias);
+
             matches!(
                 FileManager::write(folder, output.stdout, &scenario_db),
                 Ok(_)
@@ -50,25 +51,25 @@ fn perform_dump_tags(
     };
 
     if args.is_present("skip_insertion") {
-        return Ok(1);
+        return Ok(true);
     }
 
-    match dump_created {
-        true => match hosts_file().get("local") {
-            Some(local_definition) => {
-                Logger::send("creating tags on local scenarios_db", LogType::Info);
-                Action::new(Client::new(local_definition)).import_tags(folder, &scenario_db);
-                Ok(1)
-            }
-            None => Err(Error::new(
-                ErrorKind::Interrupted,
-                "Localhost not defined...",
-            )),
-        },
-        false => Err(Error::new(
-            ErrorKind::Interrupted,
-            "Dump couldn't be created...",
-        )),
+    if !dump_created {
+        return Err("Dump couldn't be created...");
+    }
+
+    if let Some(local_definition) = hosts_file().get("local") {
+        let client = Client::new(local_definition);
+        Action::new(&client, &scenario_db).perform(
+            ActionType::ImportTags,
+            folder,
+            Some(&scenario_db),
+            None,
+        );
+
+        Ok(true)
+    } else {
+        Err("Localhost not defined...")
     }
 }
 
@@ -76,18 +77,22 @@ fn perform_dump_scenario(
     config: config::Config,
     client_definition: &JsonValue,
     args: ArgMatches,
-) -> Result<usize, Error> {
+) -> Result<bool, &str> {
     let client = Client::new(client_definition);
     let ssh_alias = &config.ssh_alias;
     let folder = &config.target_folder;
 
     // 1. dump_scenario
-    let dump_scenario = args.value_of("scenario").unwrap();
+    let dump_scenario = args.value_of("db_name").unwrap();
     let dump_was_created = match args.is_present("skip_dump_creation") {
         true => true,
         false => {
-            Logger::send("dumping scenario...", LogType::Info);
-            let output = Action::new(client).dump_scenario(ssh_alias, dump_scenario);
+            let output = Action::new(&client, dump_scenario).perform(
+                ActionType::DumpScenario,
+                folder,
+                None,
+                Some(ssh_alias),
+            );
             matches!(
                 FileManager::write(folder, output.stdout, dump_scenario),
                 Ok(_)
@@ -96,7 +101,7 @@ fn perform_dump_scenario(
     };
 
     if args.is_present("skip_insertion") {
-        return Ok(1);
+        return Ok(true);
     }
 
     // 2. import scenario
@@ -104,33 +109,20 @@ fn perform_dump_scenario(
         true => match hosts_file().get("local") {
             Some(local_definition) => {
                 Logger::send("copying scenario...", LogType::Info);
-                Action::new(Client::new(local_definition)).import_scenario(folder, dump_scenario);
-                Ok(1)
-            }
-            None => Err(Error::new(
-                ErrorKind::Interrupted,
-                "Localhost not defined...",
-            )),
-        },
-        false => Err(Error::new(
-            ErrorKind::Interrupted,
-            "Dump couldn't be created...",
-        )),
-    }
-}
 
-fn perform(config: config::Config, client_definition: &JsonValue, args: ArgMatches) {
-    Logger::send("Start", LogType::Info);
-    let response = match args.value_of("action") {
-        Some(value) if value == "tags" => perform_dump_tags(config, client_definition, args),
-        Some(value) if value == "scenarios" => {
-            perform_dump_scenario(config, client_definition, args)
-        }
-        _ => unreachable!(),
-    };
-    match response {
-        Ok(_) => Logger::send("Process succesfully executed", LogType::Info),
-        _ => Logger::send("Couldn't create file", LogType::Error),
+                let client = Client::new(local_definition);
+                Action::new(&client, dump_scenario).perform(
+                    ActionType::ImportScenario,
+                    folder,
+                    None,
+                    None,
+                );
+
+                Ok(true)
+            }
+            None => Err("Localhost not defined..."),
+        },
+        false => Err("Dump couldn't be created..."),
     }
 }
 
@@ -144,12 +136,23 @@ fn main() {
         std::process::exit(0x0100);
     }
 
-    match hosts_file().get(comm.args.value_of("client").unwrap()) {
-        Some(client_definition) => {
-            perform(config, client_definition, comm.args);
+    if let Some(client_definition) = hosts_file().get(comm.args.value_of("client").unwrap()) {
+        Logger::send("Start", LogType::Info);
+        let response = match comm.args.value_of("action") {
+            Some(value) if value == "tags" => {
+                perform_dump_tags(config, client_definition, comm.args)
+            }
+            Some(value) if value == "scenarios" => {
+                perform_dump_scenario(config, client_definition, comm.args)
+            }
+            _ => unreachable!(),
+        };
+
+        match response {
+            Ok(_) => Logger::send("Process succesfully executed", LogType::Info),
+            _ => Logger::send("Couldn't execute process correctly", LogType::Error),
         }
-        None => {
-            Logger::send("Client not found in the hosts.json file...", LogType::Error);
-        }
+    } else {
+        Logger::send("Client not found in the hosts.json file...", LogType::Error);
     }
 }

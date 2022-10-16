@@ -30,8 +30,8 @@ impl Command {
                     .required(true),
             )
             .arg(
-                Arg::new("scenario")
-                    .long("scenario")
+                Arg::new("db_name")
+                    .long("db_name")
                     .help("Name of scenario to dump. Only used for action `scenarios`.")
                     .takes_value(true),
             )
@@ -56,17 +56,17 @@ impl Command {
     pub fn validate(&self) -> Result<bool, &str> {
         match self.args.value_of("action").unwrap() {
             "scenarios" => {
-                if self.args.value_of("scenario").is_some() {
+                if self.args.value_of("db_name").is_some() {
                     Ok(true)
                 } else {
-                    Err("The `scenario` is necessary to perform the `scenarios` action")
+                    Err("The `db_name` is necessary to perform the `scenarios` action")
                 }
             }
             "tags" => {
-                if self.args.value_of("scenario").is_none() {
+                if self.args.value_of("db_name").is_none() {
                     Ok(true)
                 } else {
-                    Err("The paremeter `scenario` only should be used with the `scenarios` action")
+                    Err("The paremeter `db_name` only should be used with the `scenarios` action")
                 }
             }
             _ => unreachable!(),
