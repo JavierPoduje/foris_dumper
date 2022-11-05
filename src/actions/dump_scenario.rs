@@ -15,10 +15,7 @@ impl DumpScenario {
     }
 
     pub fn perform(&self, client: &Client, scenario: &str, ssh_alias: &str) -> Output {
-        Logger::send(
-            &format!("dumping scenario '{}'...", scenario),
-            LogType::Info,
-        );
+        Logger::send(format!("dumping scenario '{}'...", scenario), LogType::Info);
         self.dump_scenario(client, scenario, ssh_alias)
     }
 }

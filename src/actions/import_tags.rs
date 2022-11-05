@@ -18,13 +18,13 @@ impl ImportTags {
     }
 
     pub fn perform(&self, client: &Client, remote_scenarios_db: &str, folder: &str) -> Output {
-        Logger::send("deleting existing tags...", LogType::Info);
+        Logger::send("deleting existing tags...".to_string(), LogType::Info);
         self.delete_tags(client);
 
-        Logger::send("deleting existing model_extensions...", LogType::Info);
+        Logger::send("deleting existing model_extensions...".to_string(), LogType::Info);
         self.delete_model_extensions(client);
 
-        Logger::send("importing tags and model_extensions...", LogType::Info);
+        Logger::send("importing tags and model_extensions...".to_string(), LogType::Info);
         self.import_scenarios_db(client, remote_scenarios_db, folder)
     }
 }

@@ -17,13 +17,13 @@ impl ImportScenario {
     }
 
     pub fn perform(&self, client: &Client, scenario: &str, folder: &str) -> Output {
-        Logger::send("deleting scenario...", LogType::Info);
+        Logger::send("deleting scenario...".to_string(), LogType::Info);
         self.delete_scenario(client, scenario);
 
-        Logger::send("creating scenario...", LogType::Info);
+        Logger::send("creating scenario...".to_string(), LogType::Info);
         self.create_scenario(client, scenario);
 
-        Logger::send("importing scenario...", LogType::Info);
+        Logger::send("importing scenario...".to_string(), LogType::Info);
         self.import(client, scenario, folder)
     }
 }

@@ -5,7 +5,7 @@ use colored::Colorize;
 pub struct Logger {}
 
 impl Logger {
-    pub fn send(message: &str, log_type: LogType) {
+    pub fn send(message: String, log_type: LogType) {
         match log_type {
             LogType::Info => {
                 let stamp = format!("{} INFO", Logger::time()).green();

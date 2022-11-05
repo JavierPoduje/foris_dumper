@@ -8,7 +8,7 @@ pub struct FileManager {}
 
 impl FileManager {
     pub fn write(folder: &str, content: Vec<u8>, filename: &str) -> Result<usize, Error> {
-        Logger::send("writing dump file...", LogType::Info);
+        Logger::send("writing dump file...".to_string(), LogType::Info);
         let path = PathBuf::from(&folder).join(&format!("{}.sql", filename));
         File::create(path)?.write(&content)
     }

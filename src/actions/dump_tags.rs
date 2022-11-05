@@ -15,7 +15,7 @@ impl DumpTags {
     }
 
     pub fn perform(&self, client: &Client, ssh_alias: &str) -> Output {
-        Logger::send("dumping tags and model_extensions...", LogType::Info);
+        Logger::send("dumping tags and model_extensions...".to_string(), LogType::Info);
         self.dump_tags(client, ssh_alias)
     }
 }
